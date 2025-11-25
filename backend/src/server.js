@@ -10,6 +10,10 @@ const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+// Allow configuring frontend origin(s) via FRONTEND_URL env var (comma-separated)
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(',').map(s => s.trim())
+  : ['http://localhost:3000', 'http://localhost:3001'];
 
 // Connect to MongoDB
 connectDB();
@@ -17,9 +21,15 @@ connectDB();
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? 'your-frontend-domain.com' 
-    : 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('CORS policy: This origin is not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
